@@ -111,14 +111,13 @@ class PodSearchController(BaseController):
 
         name = data["name"]
         result = self.resource.search_rc_pods(selector={"app": data["name"]},
-                                            kubernetes_url=kubernetes_url,
-                                            kubernetes_token=kubernetes_token,
-                                            kubernetes_ca=kubernetes_ca,
-                                            apiversion=data.get("apiversion"),
-                                            namespace=data.get("namespace", "default"))
+                                              kubernetes_url=kubernetes_url,
+                                              kubernetes_token=kubernetes_token,
+                                              kubernetes_ca=kubernetes_ca,
+                                              apiversion=data.get("apiversion"),
+                                              namespace=data.get("namespace", "default"))
 
         return result
-
 
     def _format_data(self, data):
         validate_cluster_auth(data)
