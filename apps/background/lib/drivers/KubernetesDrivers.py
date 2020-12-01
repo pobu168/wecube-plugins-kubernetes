@@ -157,8 +157,8 @@ class PodManager(object):
             return []
 
     @classmethod
-    def descibe(cls, name, url, token=None, cafile=None,
-                version=None, namespace='default'):
+    def describe(cls, name, url, token=None, cafile=None,
+                 version=None, namespace='default'):
 
         try:
             apiclient = cls.client(url=url, token=token,
@@ -170,6 +170,113 @@ class PodManager(object):
             logger.info(e)
             logger.info(traceback.format_exc())
             logger.info("query pod %s failed" % (name))
+            return {}
+
+    @classmethod
+    def create(cls, uuid, createdata,
+               url, token=None, cafile=None,
+               version=None, namespace="default"):
+        '''
+
+        :param uuid:
+        :param createdata:
+        :param url:
+        :param token:
+        :param cafile:
+        :param version:
+        :param namespace:
+        :return:
+        '''
+
+        filepath = os.path.join(YAML_TMP_PATH, "%s_pod.yaml" % uuid)
+        dict_to_yamlfile(data=createdata, filepath=filepath)
+
+        apiclient = cls.client(url=url, token=token, cafile=cafile, version=version)
+
+        try:
+            resp = apiclient.create_namespaced_pod(body=createdata, namespace=namespace)
+            return resp.to_dict()
+        except client.ApiException, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            if e.status == 409:
+                return {"status": 409}
+            return {}
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            return {}
+
+    @classmethod
+    def query(cls, name, url, token=None, cafile=None,
+              version=None, namespace="default"):
+        try:
+            return cls.describe(name=name, url=url, token=token,
+                                cafile=cafile, version=version,
+                                namespace=namespace)
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            logger.info("query pod %s error" % (name))
+            return {}
+
+    @classmethod
+    def update(cls, name, updatedata, url, token=None, cafile=None,
+               version=None, namespace="default"):
+        '''
+
+        :param apiclient:
+        :param depname:
+        :param updatedata:
+        :param namespace:
+        :return:
+        '''
+
+        apiclient = cls.client(url=url, token=token, cafile=cafile, version=version)
+        updateobject = cls.query(apiclient, name, namespace)
+        if not updateobject:
+            raise local_exceptions.ResourceNotFoundError("rc %s not found" % name)
+
+        try:
+            resp = apiclient.patch_namespaced_pod(name=name,
+                                                  namespace=namespace,
+                                                  body=updateobject)
+
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            return {}
+
+    @classmethod
+    def delete(cls, name, url, token=None, cafile=None,
+               version=None, namespace="default"):
+        '''
+
+        :param apiclient:
+        :param name:
+        :param url:
+        :param token:
+        :param cafile:
+        :param version:
+        :param namespace:
+        :return:
+        '''
+
+        apiclient = cls.client(url=url, token=token, cafile=cafile, version=version)
+        depobject = cls.query(name, url, token=token, cafile=cafile,
+                              version=version, namespace=namespace)
+
+        if not depobject:
+            return {}
+
+        try:
+            resp = apiclient.delete_namespaced_pod(name=name, namespace=namespace)
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            logger.info("delete pod %s error" % (name))
             return {}
 
 
@@ -293,11 +400,16 @@ class RCManager(object):
         if not updateobject:
             raise local_exceptions.ResourceNotFoundError("rc %s not found" % name)
 
-        resp = apiclient.patch_namespaced_replication_controller(name=name,
-                                                                 namespace=namespace,
-                                                                 body=updateobject)
+        try:
+            resp = apiclient.patch_namespaced_replication_controller(name=name,
+                                                                     namespace=namespace,
+                                                                     body=updateobject)
 
-        return resp.metadata
+            return resp.metadata
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            return {}
 
     @classmethod
     def delete(cls, name, url, token=None, cafile=None,
@@ -329,7 +441,7 @@ class RCManager(object):
             logger.info(e)
             logger.info(traceback.format_exc())
             logger.info("delete rc %s error" % (name))
-            return 0
+            return {}
 
     @classmethod
     def rollingUpdate(cls):
@@ -467,11 +579,16 @@ class DeploymentManager(object):
 
         apiclient = cls.client(url=url, token=token, cafile=cafile, version=version)
 
-        resp = apiclient.patch_namespaced_deployment(name=depname,
-                                                     namespace=namespace,
-                                                     body=updateobject)
+        try:
+            resp = apiclient.patch_namespaced_deployment(name=depname,
+                                                         namespace=namespace,
+                                                         body=updateobject)
 
-        return resp.to_dict()
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            return {}
 
     @classmethod
     def delete(cls, depname, url, token=None, cafile=None, version=None, namespace="default"):
@@ -494,9 +611,14 @@ class DeploymentManager(object):
         if not depobject:
             raise local_exceptions.ResourceNotFoundError("deployment %s not found" % depname)
 
-        resp = apiclient.delete_namespaced_deployment(name=depname,
-                                                      namespace=namespace)
-        return resp.to_dict()
+        try:
+            resp = apiclient.delete_namespaced_deployment(name=depname,
+                                                          namespace=namespace)
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e)
+            logger.info(traceback.format_exc())
+            return {}
 
 
 class ServiceManager(object):
@@ -584,7 +706,7 @@ class ServiceManager(object):
         except Exception, e:
             logger.info(e)
             logger.info(traceback.format_exc())
-            logger.info("query service %s" % (name))
+            logger.info("service %s not found" % (name))
             return {}
 
     @classmethod
@@ -613,9 +735,14 @@ class ServiceManager(object):
         if not _obj:
             raise local_exceptions.ResourceNotFoundError("service %s not found" % name)
 
-        resp = apiclient.delete_namespaced_service(name=name,
-                                                   namespace=namespace)
-        return resp.to_dict()
+        try:
+            resp = apiclient.delete_namespaced_service(name=name,
+                                                       namespace=namespace)
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e.message)
+            logger.info(traceback.format_exc())
+            return {}
 
 
 class SecretManager(object):
@@ -745,9 +872,14 @@ class SecretManager(object):
         if not _obj:
             raise local_exceptions.ResourceNotFoundError("secret %s not found" % name)
 
-        resp = apiclient.delete_namespaced_secret(name=name,
-                                                  namespace=namespace)
-        return resp.to_dict()
+        try:
+            resp = apiclient.delete_namespaced_secret(name=name,
+                                                      namespace=namespace)
+            return resp.to_dict()
+        except Exception, e:
+            logger.info(e.message)
+            logger.info(traceback.format_exc())
+            return {}
 
 
 class NodeManager(object):
