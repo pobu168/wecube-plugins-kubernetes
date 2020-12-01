@@ -4,7 +4,7 @@ from lib.ConfigReader import Config
 
 # ---------------------default setting --------------------
 DEBUG = Config.getBool("DEFAULT", "debug", default=False)
-PORT = Config.getInt("DEFAULT", "serverport", default=8090)
+PORT = Config.getInt("DEFAULT", "serverport", default=8999)
 
 # ---------------------log setting --------------------
 LOG_NAME = Config.get("LOG", "name", default="service.log")

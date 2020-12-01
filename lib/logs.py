@@ -2,15 +2,16 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import os
-import threading
 import logging
 import logging.config
 import logging.handlers
+import threading
+from wecube_plugins_kubernetes.settings import DEBUG
+from wecube_plugins_kubernetes.settings import LOG_BACKUP
 from wecube_plugins_kubernetes.settings import LOG_BASE_PATH
-from wecube_plugins_kubernetes.settings import LOG_NAME
 from wecube_plugins_kubernetes.settings import LOG_LEVEL
 from wecube_plugins_kubernetes.settings import LOG_MAX_SIZE
-from wecube_plugins_kubernetes.settings import LOG_BACKUP
+from wecube_plugins_kubernetes.settings import LOG_NAME
 
 levelmap = {
     'DEBUG': logging.DEBUG,
@@ -46,6 +47,11 @@ def logsetup(logname=None):
     formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] [%(filename)s-L%(lineno)d] - %(message)s")
     handler.setFormatter(formatter)
     logging.getLogger(logname).addHandler(handler)
+
+    if DEBUG:
+        console = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logging.getLogger("").addHandler(console)
 
 
 def get_logger(logname=None):

@@ -1,6 +1,6 @@
 FROM python:2.7.18-slim
 LABEL maintainer = "Webank CTB Team"
-# Install logrotate
+
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     mkdir -p /app/wecube-plugins-kubernetes

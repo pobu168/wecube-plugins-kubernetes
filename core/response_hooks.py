@@ -30,46 +30,71 @@ def format_string(data):
     return result
 
 
-def format_response(count, msg):
-    if isinstance(msg, list):
-        result = []
-        for res in msg:
-            _res = {"errorCode": 0, "errorMessage": ""}
-            _res.update(res)
-            result.append(format_string(_res))
-    else:
-        _res = {"errorCode": 0, "errorMessage": ""}
-        _res.update(msg)
-        result = [format_string(_res)]
-
-    return format_json_dumps({"resultCode": 0,
-                              "resultMessage": "success",
-                              "results": {
-                                  "outputs": result
-                              }})
-
-
 class ResponseController(object):
     name = None
     allow_methods = tuple()
     requestId = ""
     resource = None
 
-    def run_post(self, request, **kwargs):
-        data = request.body
-        try:
-            data = json.loads(data)
-        except:
-            raise exception_common.RequestValidateError("请求参数不为json")
+    def run_post(self, request, data, **kwargs):
+        if not isinstance(data, list):
+            raise exception_common.RequestValidateError("inputs 不支持的请求数据类型")
+
+        return self.on_create(request, data, **kwargs)
+
+    def on_create(self, request, datas, **kwargs):
+        response_data = {"resultCode": 0, "resultMessage": "success", "results": {"outputs": []}}
+        outputs = []
+        for data in datas:
+            self.before_create(request, data, **kwargs)
+
+        for data in datas:
+            _res = {"errorCode": 0, "errorMessage": ""}
+            _res["callbackParameter"] = data.pop("callbackParameter", "")
+            try:
+                res = self.create(request, data, **kwargs)
+                _res.update(res)
+            except Exception, e:
+                _res["errorCode"] = 1
+                _res["errorMessage"] = e.__class__.__name__
+                response_data["errorCode"] = 1
+                response_data["errorMessage"] = "type: %s, info: %s" % (e.__class__.__name__, e.message)
+                logger.info(traceback.format_exc())
+                _res.update(self.response_templete())
+
+            outputs.append(format_string(_res))
+
+        response_data["results"]["outputs"] = outputs
+        return response_data
+
+    def response_templete(self):
+        return {}
+
+    def before_create(self, request, data, **kwargs):
+        pass
+
+    def create(self, request, data, **kwargs):
+        return self.resource.create(data)
+
+    def _validate_column(self, data):
         if isinstance(data, list):
-            for item in data:
-                for cid, value in item.items():
-                    validate_column_line(cid)
+            raise exception_common.RequestValidateError("不支持的数据类型")
         elif isinstance(data, dict):
             for cid, value in data.items():
                 validate_column_line(cid)
         else:
             raise exception_common.RequestValidateError("未知请求数据类型")
+
+    def handler_http(self, request, **kwargs):
+        data = request.body
+        try:
+            data = json.loads(data)
+        except:
+            raise exception_common.RequestValidateError("请求参数不为json")
+
+        self.requestId = data.get("requestId") or "req_%s" % get_uuid()
+        self._trace_req(request)
+        self._validate_column(data)
 
         try:
             data = data["inputs"]
@@ -77,25 +102,8 @@ class ResponseController(object):
             logger.info(traceback.format_exc())
             raise exception_common.RequestValidateError("非法的请求数据格式")
 
-        count, res = self.on_create(request, data, **kwargs)
-        return format_response(count, res)
-
-    def on_create(self, request, data, **kwargs):
-        try:
-            return self.create(request, data, **kwargs)
-        except Exception, e:
-            logger.info(traceback.format_exc())
-            raise e
-
-    def create(self, request, data, **kwargs):
-        return self.resource.create(data)
-
-    def handler_http(self, request, **kwargs):
-        method = request.method.upper()
-        if method == "POST":
-            return self.run_post(request, **kwargs)
-        else:
-            raise exception_common.HttpMethodsNotAllowed("(POST,)")
+        result = self.run_post(request, data, **kwargs)
+        return format_json_dumps(result)
 
     def auth_method(self, request):
         method = request.method.upper()
@@ -110,14 +118,10 @@ class ResponseController(object):
         else:
             errorMessage = "type: %s, info: %s" % (errtype, errinfo)
 
-        return_data = return_data or {"errorCode": errcode, "errorMessage": errorMessage}
-        msg = {"resultCode": errcode,
+        msg = {"resultCode": 1,
                "resultMessage": errorMessage,
-               "results": {
-                   "outputs": [
-                       return_data
-                   ]
-               }}
+               "results": {"outputs": []}
+               }
 
         return json.dumps(msg, ensure_ascii=False)
 
@@ -138,26 +142,6 @@ class ResponseController(object):
             logger.info("[%s] [RP] - %s %s %s" % (self.requestId, request.method.upper(), request.path, msg))
         except:
             logger.info(traceback.format_exc())
-
-    def request_response(self, request, **kwargs):
-        method = request.method
-        if method == "OPTIONS":
-            return HttpResponse(str(self.allow_methods))
-        else:
-            if self.auth_method(request):
-                self.requestId = "req_%s" % get_uuid()
-                self._trace_req(request)
-                res = self._request_response(request, method, **kwargs)
-                res.setdefault("ReqID", self.requestId)
-                try:
-                    _traceres = res.content.decode("utf-8")
-                except:
-                    _traceres = res.content
-                self.trace_log(request, msg=(str(res.status_code) + " data: %s " % _traceres))
-                return res
-            else:
-                errmsg = self.format_err(405, "HttpMethodsNotAllowed", self.allow_methods)
-                return HttpResponseNotAllowed(self.allow_methods, content=errmsg, content_type=content_type)
 
     def exception_response(self, e):
         if e.__class__.__name__ in ['UnicodeDecodeError']:
@@ -192,10 +176,32 @@ class ResponseController(object):
             response_res = HttpResponse(status=status_code, content=errmsg, content_type=content_type)
         return response_res
 
-    def _request_response(self, request, method, **kwargs):
+    def request_response(self, request, **kwargs):
+        method = request.method
+        if method == "OPTIONS":
+            return HttpResponse(str(self.allow_methods))
+        else:
+            if request.method.upper() == "POST":
+                res = self._request_response(request, **kwargs)
+                res.setdefault("ReqID", self.requestId)
+
+                try:
+                    _traceres = res.content.decode("utf-8")
+                except:
+                    _traceres = res.content
+
+                self.trace_log(request, msg=(str(res.status_code) + " data: %s " % _traceres))
+                return res
+            else:
+                return HttpResponseNotAllowed(["POST"],
+                                              content=self.format_err(405, "HttpMethodsNotAllowed", "POST"),
+                                              content_type=content_type)
+
+    def _request_response(self, request, **kwargs):
         try:
-            msg = self.handler_http(request=request, **kwargs)
-            res = HttpResponse(content=msg, status=200, content_type=content_type)
+            res = HttpResponse(content=self.handler_http(request=request, **kwargs),
+                               status=200,
+                               content_type=content_type)
         except Exception, e:
             logger.info(traceback.format_exc())
             logger.info(e.message)
