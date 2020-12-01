@@ -2,6 +2,7 @@
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
+import copy
 import json
 import traceback
 from django.http import HttpResponse
@@ -45,34 +46,54 @@ class ResponseController(object):
         response_data = {"resultCode": 0, "resultMessage": "success", "results": {"outputs": []}}
         outputs = []
         for data in datas:
-            self.before_create(request, data, **kwargs)
+            self.before_handler(request, data, **kwargs)
 
         for data in datas:
             _res = {"errorCode": 0, "errorMessage": ""}
             _res["callbackParameter"] = data.pop("callbackParameter", "")
             try:
-                res = self.create(request, data, **kwargs)
-                _res.update(res)
+                res = self.main_response(request, data, **kwargs)
+                if not res:
+                    res = self.response_templete(data)
+
+                if isinstance(res, list):
+                    _t = []
+                    for _result in res:
+                        _res.update(_result)
+                        _tmp = copy.deepcopy(_res)
+                        _t.append(_tmp)
+
+                    outputs += _t
+                else:
+                    _res.update(res)
+                    outputs.append(format_string(_res))
             except Exception, e:
                 _res["errorCode"] = 1
                 _res["errorMessage"] = e.__class__.__name__
                 response_data["errorCode"] = 1
-                response_data["errorMessage"] = "type: %s, info: %s" % (e.__class__.__name__, e.message)
+                if e.__class__.__name__ in ['UnicodeDecodeError', 'ValueError', 'TypeError', "KeyError",
+                                            'ResourceNotCompleteError', "ResourceNotSearchError",
+                                            'AllowedForbidden', 'RequestDataTooBig', 'DataToolangError',
+                                            'ResourceNotFoundError', 'AuthFailedError', ]:
+                    response_data["errorMessage"] = "type: %s, info: %s" % (e.__class__.__name__, e.message)
+                elif e.__class__.__name__ in exception_common_classes:
+                    response_data["errorMessage"] = "type: %s, info: %s" % (e.__class__.__name__, e.message)
+                else:
+                    response_data["errorMessage"] = "type: %s" % (e.__class__.__name__)
                 logger.info(traceback.format_exc())
-                _res.update(self.response_templete())
-
-            outputs.append(format_string(_res))
+                _res.update(self.response_templete(data))
+                outputs.append(format_string(_res))
 
         response_data["results"]["outputs"] = outputs
         return response_data
 
-    def response_templete(self):
+    def response_templete(self, data):
         return {}
 
-    def before_create(self, request, data, **kwargs):
+    def before_handler(self, request, data, **kwargs):
         pass
 
-    def create(self, request, data, **kwargs):
+    def main_response(self, request, data, **kwargs):
         return self.resource.create(data)
 
     def _validate_column(self, data):
@@ -151,20 +172,9 @@ class ResponseController(object):
             status_code = 400
             errmsg = self.format_err(400, "ValueError", "字符错误， 原因：%s" % e.message)
             response_res = HttpResponse(status=status_code, content=errmsg, content_type=content_type)
-        elif e.__class__.__name__ in ['ResourceNotCompleteError', "ResourceNotSearchError"]:
-            errmsg = self.format_err(e.status_code, e.__class__.__name__, e.message, return_data=e.return_data)
-            response_res = HttpResponse(status=e.status_code, content=errmsg, content_type=content_type)
         elif e.__class__.__name__ in ['AuthFailedError']:
             status_code = 401
             errmsg = self.format_err(401, "UserAuthError", e)
-            response_res = HttpResponse(status=status_code, content=errmsg, content_type=content_type)
-        elif e.__class__.__name__ in ['AllowedForbidden', 'RequestDataTooBig', 'DataToolangError']:
-            status_code = 403
-            errmsg = self.format_err(403, "AccessNotAllowed", e)
-            response_res = HttpResponse(status=status_code, content=errmsg, content_type=content_type)
-        elif e.__class__.__name__ in ['ResourceNotFoundError']:
-            status_code = 404
-            errmsg = self.format_err(status_code, "ResourceNotFoundError", "ResourceNotFoundError")
             response_res = HttpResponse(status=status_code, content=errmsg, content_type=content_type)
         elif e.__class__.__name__ in exception_common_classes:
             errmsg = self.format_err(e.status_code, e.__class__.__name__, e)

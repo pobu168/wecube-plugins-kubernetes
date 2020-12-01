@@ -3,11 +3,9 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import time
-
 from apps.api.rc.base import RCApi
-from apps.api.rc.rc_controller import RCDeleteController
-from apps.common.validate_auth_info import validate_cluster_auth
-from apps.common.validate_auth_info import validate_cluster_info
+from apps.common.kubernetes_auth_info import validate_cluster_auth
+from apps.common.kubernetes_auth_info import validate_cluster_info
 from core import local_exceptions as exception_common
 from core import validation
 from core.controller import BaseController
@@ -15,94 +13,66 @@ from lib.uuid_util import get_uuid
 from .base import PodApi
 
 
-class PodListController(BaseController):
+class PodBaseController(BaseController):
+    def not_null_keys(self):
+        return ["kubernetes_url"]
+
+    def before_handler(self, request, data, **kwargs):
+        validate_cluster_auth(data)
+        validation.not_allowed_null(data=data,
+                                    keys=self.not_null_keys()
+                                    )
+
+        validation.validate_string("kubernetes_url", data["kubernetes_url"])
+        validation.validate_string("kubernetes_token", data.get("kubernetes_token"))
+        validation.validate_string("kubernetes_ca", data.get("kubernetes_ca"))
+        validation.validate_string("apiversion", data.get("apiversion"))
+        validation.validate_string("namespace", data.get("namespace"))
+        validate_cluster_info(data["kubernetes_url"])
+
+
+class PodListController(PodBaseController):
     name = "Pod"
-    resouPode_describe = "Pod"
+    resource_describe = "Pod"
     allow_methods = ('POST',)
     resource = PodApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url"]
+    def response_templete(self, data):
+        return []
+
+    def main_response(self, request, data, **kwargs):
+        result = self.resource.list(kubernetes_url=data["kubernetes_url"],
+                                    kubernetes_token=data.get("kubernetes_token"),
+                                    kubernetes_ca=data.get("kubernetes_ca"),
+                                    apiversion=data.get("apiversion"),
+                                    namespace=data.get("namespace")
                                     )
-
-        kubernetes_url = data["kubernetes_url"]
-        kubernetes_token = data.get("kubernetes_token")
-        kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
-        validation.not_allowed_null(keys=["kubernetes_url"],
-                                    data=data)
-
-        count, result = self.resource.list(kubernetes_url=data["kubernetes_url"],
-                                           kubernetes_token=data.get("kubernetes_token"),
-                                           kubernetes_ca=data.get("kubernetes_ca"),
-                                           apiversion=data.get("apiversion"),
-                                           namespace=data.get("namespace"),
-                                           **kwargs)
-        return count, result
+        return result
 
 
-class PodIdController(BaseController):
+class PodDetailController(PodBaseController):
     name = "Pod.id"
-    resouPode_describe = "Pod"
+    resource_describe = "Pod"
     allow_methods = ("POST",)
     resource = PodApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
 
+    def response_templete(self, data):
+        return {"pod_restart_policy": "", "pod_uid": "",
+                "pod_created_time": "", "pod_ip": "",
+                "pod_start_time": "", "host_memory": "",
+                "host_ip": "", "pod_annotations": "",
+                "pod_labels": "", "host_cpu": "", "pod_node_name": "",
+                "host_name": "", "pod_api_version": "",
+                "pod_namespace": "", "host_uuid": "",
+                "containers": "", "pod_name": data["name"]}
+
+    def main_response(self, request, data, **kwargs):
         kubernetes_url = data["kubernetes_url"]
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
-        name = data["name"]
-        result = self.resource.describe(name=name,
-                                        kubernetes_url=kubernetes_url,
-                                        kubernetes_token=kubernetes_token,
-                                        kubernetes_ca=kubernetes_ca,
-                                        apiversion=data.get("apiversion"),
-                                        namespace=data.get("namespace", "default")
-                                        )
-        if not result:
-            raise exception_common.ResourceNotFoundError()
-
-        return 1, result
-
-
-class PodDetailController(BaseController):
-    name = "Pod.id"
-    resouPode_describe = "Pod"
-    allow_methods = ("POST",)
-    resource = PodApi()
-
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
-
-        kubernetes_url = data["kubernetes_url"]
-        kubernetes_token = data.get("kubernetes_token")
-        kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
 
         name = data["name"]
         result = self.resource.detail(name=name,
@@ -112,17 +82,43 @@ class PodDetailController(BaseController):
                                       apiversion=data.get("apiversion"),
                                       namespace=data.get("namespace", "default")
                                       )
-        if not result:
-            raise exception_common.ResourceNotFoundError()
-
-        return 1, result
+        return result
 
 
 class PodSearchController(BaseController):
     name = "Pod.id"
-    resouPode_describe = "Pod"
+    resource_describe = "Pod"
     allow_methods = ("POST",)
     resource = RCApi()
+
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
+
+    def response_templete(self, data):
+        return {"pod_restart_policy": "", "pod_uid": "",
+                "pod_created_time": "", "pod_ip": "",
+                "pod_start_time": "", "host_memory": "",
+                "host_ip": "", "pod_annotations": "",
+                "pod_labels": "", "host_cpu": "", "pod_node_name": "",
+                "host_name": "", "pod_api_version": "",
+                "pod_namespace": "", "host_uuid": "",
+                "containers": "", "pod_name": data["name"]}
+
+    def main_response(self, request, data, **kwargs):
+        kubernetes_url = data["kubernetes_url"]
+        kubernetes_token = data.get("kubernetes_token")
+        kubernetes_ca = data.get("kubernetes_ca")
+
+        name = data["name"]
+        result = self.resource.search_rc_pods(selector={"app": data["name"]},
+                                            kubernetes_url=kubernetes_url,
+                                            kubernetes_token=kubernetes_token,
+                                            kubernetes_ca=kubernetes_ca,
+                                            apiversion=data.get("apiversion"),
+                                            namespace=data.get("namespace", "default"))
+
+        return result
+
 
     def _format_data(self, data):
         validate_cluster_auth(data)
@@ -255,9 +251,6 @@ class PodCreateController(BaseController):
         else:
             labels = {"app": name}
 
-        # env = deployment.get("env")
-        # if env:
-        #     env = validation.validate_dict("env", env)
         env = self._format_env(deployment.get("env"))
 
         containerports = deployment.get("containerports")
@@ -495,6 +488,25 @@ class PodCreateController(BaseController):
         return len(result), result
 
 
-class PodDeleteController(RCDeleteController):
-    def __repr__(self):
-        return "PodDeleteController -> RCDeleteController"
+class PodDeleteController(PodBaseController):
+    name = "Pod.id"
+    resource_describe = "Pod"
+    allow_methods = ("POST",)
+    resource = PodApi()
+
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
+
+    def response_templete(self, data):
+        return {"id": data.get("id"), "name": data["name"]}
+
+    def main_response(self, request, data, **kwargs):
+        result = self.resource.delete(name=data["name"],
+                                      kubernetes_url=data["kubernetes_url"],
+                                      kubernetes_token=data.get("kubernetes_token"),
+                                      kubernetes_ca=data.get("kubernetes_ca"),
+                                      apiversion=data.get("apiversion"),
+                                      namespace=data.get("namespace", "default")
+                                      )
+
+        return {"id": data.get("id"), "name": data["name"]}

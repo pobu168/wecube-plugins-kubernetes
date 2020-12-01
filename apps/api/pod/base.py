@@ -22,12 +22,11 @@ class PodApi(object):
         :return:
         '''
 
-        result = PodManager.list(url=kubernetes_url, token=kubernetes_token,
-                                 cafile=kubernetes_ca, version=apiversion,
-                                 namespace=namespace,
-                                 label_selector=label_selector,
-                                 **kwargs)
-        return len(result), result
+        return PodManager.list(url=kubernetes_url, token=kubernetes_token,
+                               cafile=kubernetes_ca, version=apiversion,
+                               namespace=namespace,
+                               label_selector=label_selector,
+                               **kwargs)
 
     def __pod_info__(self, name, kubernetes_url,
                      kubernetes_token=None, kubernetes_ca=None,
@@ -44,12 +43,12 @@ class PodApi(object):
         :return:
         '''
 
-        return PodManager.descibe(name,
-                                  url=kubernetes_url,
-                                  token=kubernetes_token,
-                                  cafile=kubernetes_ca,
-                                  version=apiversion,
-                                  namespace=namespace)
+        return PodManager.query(name,
+                                url=kubernetes_url,
+                                token=kubernetes_token,
+                                cafile=kubernetes_ca,
+                                version=apiversion,
+                                namespace=namespace)
 
     def detail(self, name, kubernetes_url,
                kubernetes_token=None, kubernetes_ca=None,
@@ -248,3 +247,23 @@ class PodApi(object):
             rc_pod_lists.append(rc_pod)
 
         return rc_pod_lists
+
+    def delete(self, name, kubernetes_url, kubernetes_token=None,
+               kubernetes_ca=None, apiversion=None, namespace="default", **kwargs):
+        '''
+
+        :param name:
+        :param kubernetes_url:
+        :param kubernetes_token:
+        :param kubernetes_ca:
+        :param apiversion:
+        :param namespace:
+        :param kwargs:
+        :return:
+        '''
+
+        return PodManager.delete(name, url=kubernetes_url,
+                                 token=kubernetes_token,
+                                 cafile=kubernetes_ca,
+                                 version=apiversion,
+                                 namespace=namespace)

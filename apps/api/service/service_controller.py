@@ -4,8 +4,8 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 
 import time
 
-from apps.common.validate_auth_info import validate_cluster_auth
-from apps.common.validate_auth_info import validate_cluster_info
+from apps.common.kubernetes_auth_info import validate_cluster_auth
+from apps.common.kubernetes_auth_info import validate_cluster_info
 from core import local_exceptions as exception_common
 from core import validation
 from core.controller import BaseController
