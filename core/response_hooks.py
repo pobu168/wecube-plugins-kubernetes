@@ -4,16 +4,15 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 
 import json
 import traceback
-
 from django.http import HttpResponse
 from django.http import HttpResponseNotAllowed
-
 from core import local_exceptions as exception_common
 from core.validation import validate_column_line
 from lib.classtools import get_all_class_for_module
 from lib.json_helper import format_json_dumps
 from lib.logs import logger
 from lib.uuid_util import get_uuid
+from .auth import jwt_request
 
 content_type = 'application/json,charset=utf-8'
 exception_common_classes = get_all_class_for_module(exception_common)
@@ -199,6 +198,7 @@ class ResponseController(object):
 
     def _request_response(self, request, **kwargs):
         try:
+            jwt_request(request)
             res = HttpResponse(content=self.handler_http(request=request, **kwargs),
                                status=200,
                                content_type=content_type)

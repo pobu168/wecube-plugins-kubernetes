@@ -3,6 +3,7 @@
 
     <!-- 1.依赖分析 - 描述运行本插件包需要的其他插件包 -->
     <packageDependencies>
+        <packageDependency name="platform" version="v2.7.0" />
     </packageDependencies>
 
     <!-- 2.菜单注入 - 描述运行本插件包需要注入的菜单 -->
@@ -24,7 +25,7 @@
 
     <!-- 6.运行资源 - 描述部署运行本插件包需要的基础资源(如主机、虚拟机、容器、数据库等) -->
     <resourceDependencies>
-        <docker imageName="{{IMAGENAME}}" containerName="{{CONTAINERNAME}}" portBindings="{{ALLOCATE_PORT}}:8999" volumeBindings="/etc/localtime:/etc/localtime,{{BASE_MOUNT_PATH}}/kubernetes/logs:/app/wecube-plugins-kubernetes/logs" envVariables=""/>
+        <docker imageName="{{IMAGENAME}}" containerName="{{CONTAINERNAME}}" portBindings="{{ALLOCATE_PORT}}:8999" volumeBindings="/etc/localtime:/etc/localtime,{{BASE_MOUNT_PATH}}/kubernetes/logs:/app/wecube-plugins-kubernetes/logs" envVariables="JWT_SIGNING_KEY={{JWT_SIGNING_KEY}}"/>
     </resourceDependencies>
 
     <!-- 7.插件列表 - 描述插件包中单个插件的输入和输出 -->
