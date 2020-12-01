@@ -195,12 +195,108 @@ class PodSearchController(BaseController):
         return len(return_data), return_data
 
 
-class PodCreateController(BaseController):
+class PodCreateController(PodBaseController):
     name = "pod"
     resource_describe = "pod"
     allow_methods = ("POST")
     resource = RCApi()
 
+    def not_null_keys(self):
+        return ["kubernetes_url", "name", "image", "containername", "containerports"]
+    
+    def before_handler(self, request, data, **kwargs):
+        validate_cluster_auth(data)
+        validation.not_allowed_null(data=data,
+                                    keys=self.not_null_keys()
+                                    )
+
+        kubernetes_url = data["kubernetes_url"]
+        kubernetes_token = data.get("kubernetes_token")
+        kubernetes_ca = data.get("kubernetes_ca")
+
+        validation.validate_string("kubernetes_url", kubernetes_url)
+        validation.validate_string("kubernetes_token", kubernetes_token)
+        validation.validate_string("kubernetes_ca", kubernetes_ca)
+        validate_cluster_info(kubernetes_url)
+
+        name = data["name"]
+        image = data["image"]
+
+        containerlabels = data.get("containerlabels", {})
+        if containerlabels:
+            containerlabels = validation.validate_dict("containerlabels", containerlabels)
+        else:
+            containerlabels = {"app": name}
+
+        selector = data.get("selector", {})
+        if selector:
+            selector = validation.validate_dict("selector", selector)
+        else:
+            selector = {"app": name}
+
+        labels = data.get("labels", {})
+        if labels:
+            labels = validation.validate_dict("labels", labels)
+        else:
+            labels = {"app": name}
+
+        env = self._format_env(data.get("env"))
+        validation.validate_string("env", data.get("env"))
+
+        containerports = data.get("containerports")
+        if containerports:
+            containerports = validation.validate_port(containerports)
+
+        request_cpu = data.get("request_cpu")
+        if request_cpu:
+            request_cpu = validation.validate_number("request_cpu",
+                                                     value=request_cpu,
+                                                     min=0.01, max=32)
+
+        request_memory = data.get("request_memory")
+        if request_memory:
+            request_memory = validation.validate_number("request_memory",
+                                                        value=request_memory,
+                                                        min=128, max=64 * 1024)
+
+        limit_cpu = data.get("limit_cpu")
+        if limit_cpu:
+            limit_cpu = validation.validate_number("limit_cpu",
+                                                   value=limit_cpu,
+                                                   min=0.01, max=32)
+
+        limit_memory = data.get("limit_memory")
+        if limit_memory:
+            limit_memory = validation.validate_number("limit_memory",
+                                                      value=limit_memory,
+                                                      min=128, max=64 * 1024)
+
+        containername = data.get("containername")
+        if containername:
+            containername = validation.validate_string("containername", containername)
+
+        imagePullSecrets = data.get("imagePullSecrets")
+        if imagePullSecrets:
+            imagePullSecrets = validation.validate_string("imagePullSecrets", imagePullSecrets)
+
+        docker_register_server = data.get("docker_register_server")
+        if docker_register_server:
+            docker_register_server = validation.validate_string("docker_register_server",
+                                                                docker_register_server)
+        else:
+            docker_register_server = image.split("/")[0]
+
+        docker_password = data.get("docker_password")
+        if docker_password:
+            docker_password = validation.validate_string("docker_password", docker_password)
+
+        docker_username = data.get("docker_username")
+        if docker_username:
+            docker_username = validation.validate_string("docker_username", docker_username)
+
+        replicas = data.get("replicas", 1)
+        apiversion = data.get("apiversion", "v1")
+        
     def _format_env(self, envstring):
         env = {}
         envstring = validation.validate_string("env", envstring)
