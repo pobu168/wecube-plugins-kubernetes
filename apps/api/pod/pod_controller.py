@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import time
+
 from apps.api.rc.base import RCApi
 from apps.common.kubernetes_auth_info import validate_cluster_auth
 from apps.common.kubernetes_auth_info import validate_cluster_info
@@ -167,12 +168,12 @@ class PodSearchController(BaseController):
                 _data = {"errorCode": 1, "errorMessage": "创建失败",
                          "pod_restart_policy": "", "pod_uid": "",
                          "pod_created_time": "", "pod_ip": "",
-                         "pod_start_time": "", "host_memory": "",
-                         "host_ip": "", "pod_annotations": "",
-                         "pod_labels": "", "host_cpu": "", "pod_node_name": "",
-                         "host_name": "", "pod_api_version": "",
-                         "pod_namespace": "", "host_uuid": "",
-                         "containers": "", "pod_name": search_data["name"]}
+                         "pod_start_time": "", "host_memory": "", "host_ip": "",
+                         "pod_annotations": "", "pod_labels": "",
+                         "host_cpu": "", "pod_node_name": "", "host_name": "",
+                         "pod_api_version": "", "pod_namespace": "",
+                         "host_uuid": "", "containers": "",
+                         "pod_name": search_data["name"]}
 
                 _data["id"] = search_data["id"]
                 _data["callbackParameter"] = search_data["callbackParameter"]
@@ -205,7 +206,7 @@ class PodCreateController(PodBaseController):
 
     def not_null_keys(self):
         return ["kubernetes_url", "name", "image", "containername", "containerports"]
-    
+
     def before_handler(self, request, data, **kwargs):
         validate_cluster_auth(data)
         validation.not_allowed_null(data=data,
@@ -243,7 +244,7 @@ class PodCreateController(PodBaseController):
             labels = {"app": name}
 
         env = self._format_env(data.get("env"))
-        validation.validate_string("env", data.get("env"))
+        # validation.validate_string("env", data.get("env"))
 
         containerports = data.get("containerports")
         if containerports:
@@ -298,7 +299,32 @@ class PodCreateController(PodBaseController):
 
         replicas = data.get("replicas", 1)
         apiversion = data.get("apiversion", "v1")
-        
+
+        return {"kubernetes_url": kubernetes_url,
+                "name": name,
+                "id": data.get("id"),
+                "image": image,
+                "containerports": containerports,
+                "kubernetes_token": kubernetes_token,
+                "kubernetes_ca": kubernetes_ca,
+                "apiversion": apiversion,
+                "replicas": replicas,
+                "labels": labels,
+                "selector": selector,
+                "containername": containername,
+                "containerlabels": containerlabels,
+                "env": env,
+                "request_cpu": request_cpu,
+                "request_memory": request_memory,
+                "limit_cpu": limit_cpu,
+                "limit_memory": limit_memory,
+                "namespace": data.get("namespace", "default"),
+                'docker_password': docker_password,
+                'docker_username': docker_username,
+                'docker_register_server': docker_register_server,
+                'imagePullSecrets': imagePullSecrets
+                }
+
     def _format_env(self, envstring):
         env = {}
         envstring = validation.validate_string("env", envstring)
