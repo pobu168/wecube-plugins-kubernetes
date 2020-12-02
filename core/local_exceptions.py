@@ -175,7 +175,7 @@ class ResourceNotCompleteError(Exception):
 
     def __init__(self, param, msg, return_data):
         self.return_data = return_data
-        _msg = "部分资源 %s 创建未完成， 原因： %s" % (param, msg)
+        _msg = "资源 %s 创建未完成， 原因： %s" % (param, msg)
         super(ResourceNotCompleteError, self).__init__(_msg)
 
 
