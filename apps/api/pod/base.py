@@ -73,37 +73,13 @@ class PodApi(object):
                                      apiversion=apiversion,
                                      namespace=namespace)
         if pod_info:
-            node_name = pod_info["spec"]["node_name"]
-            node = NodeApi().node_info(node_name, kubernetes_url,
-                                       kubernetes_token=kubernetes_token,
-                                       kubernetes_ca=kubernetes_ca,
-                                       apiversion=apiversion,
-                                       namespace=namespace)
-
-            node["ipaddress"] = pod_info["status"]["host_ip"]
-            pod_info["node"] = node
-
-            result = {}
-            result["api_version"] = pod_info["api_version"]
-
-            result["pod_ip"] = pod_info["status"]["pod_ip"]
-            result["host_ip"] = pod_info["status"]["host_ip"]
-            result["host_uuid"] = node.get("uuid")
-            result["start_time"] = pod_info["status"]["start_time"]
-
-            result["podname"] = pod_info["metadata"]["name"]
-            result["name"] = name
-            result["namespace"] = pod_info["metadata"]["namespace"]
-            result["labels"] = pod_info["metadata"]["labels"]
-            result["created_time"] = pod_info["metadata"]["creation_timestamp"]
-            result["uid"] = pod_info["metadata"]["uid"]
-            result["node_name"] = node_name
-            result["restart_policy"] = pod_info["spec"]["restart_policy"]
-            result["annotations"] = pod_info["metadata"]["annotations"]
-
-            _containers = pod_info["spec"]["containers"]
-            result["containers"] = self.__container_info__(containers=_containers)
-
+            result = self.__format_pod_info__(pod_info,
+                                              kubernetes_url,
+                                              kubernetes_token=kubernetes_token,
+                                              kubernetes_ca=kubernetes_ca,
+                                              apiversion=apiversion,
+                                              namespace=namespace
+                                              )
             return result
         else:
             return pod_info

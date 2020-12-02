@@ -67,7 +67,8 @@ class PodDetailController(PodBaseController):
                 "pod_labels": "", "host_cpu": "", "pod_node_name": "",
                 "host_name": "", "pod_api_version": "",
                 "pod_namespace": "", "host_uuid": "",
-                "containers": "", "pod_name": data["name"]}
+                "containers": "", "pod_name": data["name"],
+                "id": data.get("id")}
 
     def main_response(self, request, data, **kwargs):
         kubernetes_url = data["kubernetes_url"]
@@ -82,6 +83,8 @@ class PodDetailController(PodBaseController):
                                       apiversion=data.get("apiversion"),
                                       namespace=data.get("namespace", "default")
                                       )
+        if result:
+            result["id"] = data.get("id")
         return result
 
 
@@ -111,14 +114,13 @@ class PodSearchController(BaseController):
 
         name = data["name"]
         result = self.resource.search_rc_pods(selector={"app": data["name"]},
-                                            kubernetes_url=kubernetes_url,
-                                            kubernetes_token=kubernetes_token,
-                                            kubernetes_ca=kubernetes_ca,
-                                            apiversion=data.get("apiversion"),
-                                            namespace=data.get("namespace", "default"))
+                                              kubernetes_url=kubernetes_url,
+                                              kubernetes_token=kubernetes_token,
+                                              kubernetes_ca=kubernetes_ca,
+                                              apiversion=data.get("apiversion"),
+                                              namespace=data.get("namespace", "default"))
 
         return result
-
 
     def _format_data(self, data):
         validate_cluster_auth(data)
