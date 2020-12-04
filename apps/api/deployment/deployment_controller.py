@@ -11,40 +11,43 @@ from lib.uuid_util import get_uuid
 from .base import DeploymentApi
 
 
-class DeploymentListController(BaseController):
+class DeploymentBaseController(BaseController):
+    def not_null_keys(self):
+        return ["kubernetes_url"]
+
+    def before_handler(self, request, data, **kwargs):
+        validate_cluster_auth(data)
+        validation.not_allowed_null(data=data,
+                                    keys=self.not_null_keys()
+                                    )
+
+        validation.validate_string("kubernetes_url", data["kubernetes_url"])
+        validation.validate_string("kubernetes_token", data.get("kubernetes_token"))
+        validation.validate_string("kubernetes_ca", data.get("kubernetes_ca"))
+        validation.validate_string("apiversion", data.get("apiversion"))
+        validation.validate_string("namespace", data.get("namespace"))
+        validate_cluster_info(data["kubernetes_url"])
+
+
+class DeploymentListController(DeploymentBaseController):
     name = "Deployment"
     resource_describe = "Deployment"
     allow_methods = ("POST",)
     resource = DeploymentApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url"]
-                                    )
+    def response_templete(self, data):
+        return []
 
-        kubernetes_url = data["kubernetes_url"]
-        kubernetes_token = data.get("kubernetes_token")
-        kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
-        validation.not_allowed_null(keys=["kubernetes_url"],
-                                    data=data)
-
-        count, result = self.resource.list(kubernetes_url=data["kubernetes_url"],
+    def main_response(self, request, data, **kwargs):
+        return self.resource.list(kubernetes_url=data["kubernetes_url"],
                                            kubernetes_token=data.get("kubernetes_token"),
                                            kubernetes_ca=data.get("kubernetes_ca"),
                                            apiversion=data.get("apiversion"),
                                            namespace=data.get("namespace"),
                                            **kwargs)
-        return count, result
 
 
-class DeploymentAddController(BaseController):
+class DeploymentAddController(DeploymentBaseController):
     name = "Deployment"
     resource_describe = "Deployment"
     allow_methods = ("POST",)
@@ -192,26 +195,23 @@ class DeploymentAddController(BaseController):
         return count, result
 
 
-class DeploymentIdController(BaseController):
+class DeploymentIdController(DeploymentBaseController):
     name = "Deployment.id"
     resource_describe = "Deployment"
     allow_methods = ("POST",)
     resource = DeploymentApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
 
+    def response_templete(self, data):
+        # todo detail deployment
+        return {}
+
+    def main_response(self, request, data, **kwargs):
         kubernetes_url = data["kubernetes_url"]
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
 
         result = self.resource.show(name=data["name"],
                                     kubernetes_url=kubernetes_url,
@@ -223,23 +223,23 @@ class DeploymentIdController(BaseController):
         if not result:
             raise exception_common.ResourceNotFoundError()
 
-        return 1, result
+        return result
 
 
-class DeploymentUpdateIdController(BaseController):
+class DeploymentUpdateIdController(DeploymentBaseController):
     name = "Deployment.id"
     resource_describe = "Deployment"
-    allow_methods = ("PATCH",)
+    allow_methods = ("POST",)
     resource = DeploymentApi()
 
-    def update(self, request, data, **kwargs):
-        validation.not_allowed_null(keys=["kubernetes_url", "name"],
-                                    data=data)
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
 
-        validate_cluster_auth(data)
-        validation.validate_string("kubernetes_url", data["kubernetes_url"])
-        validate_cluster_info(data["kubernetes_url"])
+    def response_templete(self, data):
+        # todo detail deployment
+        return {}
 
+    def main_response(self, request, data, **kwargs):
         kubernetes_url = data.pop("kubernetes_url", None)
         kubernetes_token = data.pop("kubernetes_token", None)
         kubernetes_ca = data.pop("kubernetes_ca", None)
@@ -254,29 +254,26 @@ class DeploymentUpdateIdController(BaseController):
         if not result:
             raise exception_common.ResourceNotFoundError()
 
-        return 1, result
+        return result
 
 
-class DeploymentDeleteIdController(BaseController):
+class DeploymentDeleteIdController(DeploymentBaseController):
     name = "Deployment.id"
     resource_describe = "Deployment"
     allow_methods = ("POST",)
     resource = DeploymentApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
 
+    def response_templete(self, data):
+        # todo detail deployment
+        return {}
+
+    def main_response(self, request, data, **kwargs):
         kubernetes_url = data["kubernetes_url"]
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
 
         result = self.resource.delete(name=data["name"],
                                       kubernetes_url=kubernetes_url,

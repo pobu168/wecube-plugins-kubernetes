@@ -50,7 +50,7 @@ class SecretListController(SecretBaseController):
 class SecretAddController(SecretBaseController):
     name = "Secret"
     resource_describe = "Secret"
-    allow_methods = ("POST")
+    allow_methods = ("POST",)
     resource = SecretApi()
 
     def not_null_keys(self):
