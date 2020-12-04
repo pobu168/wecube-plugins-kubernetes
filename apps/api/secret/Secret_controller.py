@@ -11,46 +11,56 @@ from lib.uuid_util import get_uuid
 from .base import SecretApi
 
 
-class SecretListController(BaseController):
-    name = "Secret"
-    resouSecrete_describe = "Secret"
-    allow_methods = ('POST',)
-    resouSecrete = SecretApi()
+class SecretBaseController(BaseController):
+    def not_null_keys(self):
+        return ["kubernetes_url"]
 
-    def create(self, request, data, **kwargs):
+    def before_handler(self, request, data, **kwargs):
         validate_cluster_auth(data)
         validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url"]
+                                    keys=self.not_null_keys()
                                     )
 
-        kubernetes_url = data["kubernetes_url"]
-        kubernetes_token = data.get("kubernetes_token")
-        kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
-        validation.not_allowed_null(keys=["kubernetes_url"],
-                                    data=data)
-
-        count, result = self.resouSecrete.list(kubernetes_url=data["kubernetes_url"],
-                                               kubernetes_token=data.get("kubernetes_token"),
-                                               kubernetes_ca=data.get("kubernetes_ca"),
-                                               apiversion=data.get("apiversion"),
-                                               namespace=data.get("namespace"),
-                                               **kwargs)
-        return count, result
+        validation.validate_string("kubernetes_url", data["kubernetes_url"])
+        validation.validate_string("kubernetes_token", data.get("kubernetes_token"))
+        validation.validate_string("kubernetes_ca", data.get("kubernetes_ca"))
+        validation.validate_string("apiversion", data.get("apiversion"))
+        validation.validate_string("namespace", data.get("namespace"))
+        validate_cluster_info(data["kubernetes_url"])
 
 
-class SecretAddController(BaseController):
+class SecretListController(SecretBaseController):
     name = "Secret"
-    resouSecrete_describe = "Secret"
-    allow_methods = ("POST")
-    resouSecrete = SecretApi()
+    resource_describe = "Secret"
+    allow_methods = ('POST',)
+    resource = SecretApi()
 
-    def create(self, request, data, **kwargs):
+    def response_templete(self, data):
+        return []
+
+    def main_response(self, request, data, **kwargs):
+        return self.resource.list(kubernetes_url=data["kubernetes_url"],
+                                  kubernetes_token=data.get("kubernetes_token"),
+                                  kubernetes_ca=data.get("kubernetes_ca"),
+                                  apiversion=data.get("apiversion"),
+                                  namespace=data.get("namespace"),
+                                  **kwargs)
+
+
+class SecretAddController(SecretBaseController):
+    name = "Secret"
+    resource_describe = "Secret"
+    allow_methods = ("POST")
+    resource = SecretApi()
+
+    def not_null_keys(self):
+        return ["kubernetes_url", "name", "server", "username", "password"]
+
+    def response_templete(self, data):
+        # todo detail secret create
+        return {}
+
+    def main_response(self, request, data, **kwargs):
         '''
         :param request:
         :param data:
@@ -77,11 +87,6 @@ class SecretAddController(BaseController):
         :param kwargs:
         :return:
         '''
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name", "server",
-                                          "username", "password"]
-                                    )
 
         uuid = data.get("id", None) or get_uuid()
 
@@ -89,101 +94,89 @@ class SecretAddController(BaseController):
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
 
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
         apiversion = data.get("apiversion", "v1")
         name = data["name"]
         server = data["server"]
         username = data["username"]
         password = data["password"]
 
-        result = self.resouSecrete.create_docker_register(uuid=uuid,
-                                                          kubernetes_url=kubernetes_url,
-                                                          name=name,
-                                                          server=server,
-                                                          username=username,
-                                                          password=password,
-                                                          kubernetes_token=kubernetes_token,
-                                                          kubernetes_ca=kubernetes_ca,
-                                                          apiversion=apiversion,
-                                                          namespace=data.get("namespace", "default")
-                                                          )
+        result = self.resource.create_docker_register(uuid=uuid,
+                                                      kubernetes_url=kubernetes_url,
+                                                      name=name,
+                                                      server=server,
+                                                      username=username,
+                                                      password=password,
+                                                      kubernetes_token=kubernetes_token,
+                                                      kubernetes_ca=kubernetes_ca,
+                                                      apiversion=apiversion,
+                                                      namespace=data.get("namespace", "default")
+                                                      )
 
-        count = 1 if result else 0
         if result:
-            result["uuid"] = uuid
+            result["id"] = uuid
         else:
             raise exception_common.ResoucrAddError("Secret 创建失败")
 
-        return count, result
+        return result
 
 
 class SecretIdController(BaseController):
     name = "Secret.id"
-    resouSecrete_describe = "Secret"
+    resource_describe = "Secret"
     allow_methods = ("POST",)
-    resouSecrete = SecretApi()
+    resource = SecretApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
 
+    def response_templete(self, data):
+        # todo detail secret
+        return {}
+
+    def main_response(self, request, data, **kwargs):
         kubernetes_url = data["kubernetes_url"]
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
-
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
         name = data["name"]
-        result = self.resouSecrete.show(name=name,
-                                        kubernetes_url=kubernetes_url,
-                                        kubernetes_token=kubernetes_token,
-                                        kubernetes_ca=kubernetes_ca,
-                                        apiversion=data.get("apiversion"),
-                                        namespace=data.get("namespace", "default")
-                                        )
+
+        result = self.resource.show(name=name,
+                                    kubernetes_url=kubernetes_url,
+                                    kubernetes_token=kubernetes_token,
+                                    kubernetes_ca=kubernetes_ca,
+                                    apiversion=data.get("apiversion"),
+                                    namespace=data.get("namespace", "default")
+                                    )
         if not result:
             raise exception_common.ResourceNotFoundError()
 
-        return 1, result
+        return result
 
 
-class SecretDeleteController(BaseController):
+class SecretDeleteController(SecretBaseController):
     name = "Secret"
-    resouSecrete_describe = "Secret"
+    resource_describe = "Secret"
     allow_methods = ("POST",)
-    resouSecrete = SecretApi()
+    resource = SecretApi()
 
-    def create(self, request, data, **kwargs):
-        validate_cluster_auth(data)
-        validation.not_allowed_null(data=data,
-                                    keys=["kubernetes_url", "name"]
-                                    )
+    def not_null_keys(self):
+        return ["kubernetes_url", "name"]
+
+    def response_templete(self, data):
+        return {"id": data.get("id"), "name": data["name"]}
+
+    def main_response(self, request, data, **kwargs):
         name = data["name"]
         kubernetes_url = data["kubernetes_url"]
         kubernetes_token = data.get("kubernetes_token")
         kubernetes_ca = data.get("kubernetes_ca")
 
-        validation.validate_string("kubernetes_url", kubernetes_url)
-        validation.validate_string("kubernetes_token", kubernetes_token)
-        validation.validate_string("kubernetes_ca", kubernetes_ca)
-        validate_cluster_info(kubernetes_url)
-
-        result = self.resouSecrete.delete(name=name,
-                                          kubernetes_url=kubernetes_url,
-                                          kubernetes_token=kubernetes_token,
-                                          kubernetes_ca=kubernetes_ca,
-                                          apiversion=data.get("apiversion"),
-                                          namespace=data.get("namespace", "default")
-                                          )
+        result = self.resource.delete(name=name,
+                                      kubernetes_url=kubernetes_url,
+                                      kubernetes_token=kubernetes_token,
+                                      kubernetes_ca=kubernetes_ca,
+                                      apiversion=data.get("apiversion"),
+                                      namespace=data.get("namespace", "default")
+                                      )
         if not result:
             raise exception_common.ResourceNotFoundError()
 
